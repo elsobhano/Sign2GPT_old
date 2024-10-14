@@ -20,7 +20,10 @@ import copy
 
 import pytorch_lightning as pl
 from transformers import XGLMTokenizer
-from dataset.utils import Brightness, Color, load_dataset_file, read_lmdb_folder, data_augmentation
+try:
+    from dataset.utils import Brightness, Color, load_dataset_file, read_lmdb_folder, data_augmentation
+except:
+    from utils import Brightness, Color, load_dataset_file, read_lmdb_folder, data_augmentation
 
 
 
@@ -74,9 +77,6 @@ class S2T_Dataset(Dataset):
         self.raw_data = load_dataset_file(path)
 
         self.tokenizer = tokenizer
-        # print(tokenizer.bos_token_id == 0)
-        # print(tokenizer.eos_token_id == 2)
-        # print(tokenizer.pad_token_id == 1)
 
         self.lmdb_path = config['data']['lmdb_path']
         self.phase = phase
@@ -148,14 +148,15 @@ class S2T_Dataset(Dataset):
             # img = np.transpose(img, (0, 1, 2))
             img = Image.fromarray(img)
             batch_image.append(img)
+        
         # import matplotlib.pyplot as plt
         # plt.imshow(img)
         # plt.axis('off')
         # plt.show()
+        # exit(0)
         # print(file_name)
         # print(len_imgs)
         # print(type(images[0]))
-        # exit()
 
         if self.phase == 'train':
             batch_image = self.seq(batch_image)
@@ -186,6 +187,11 @@ def collate_fn(input_batch):
     # Prepare inputs and labels for next token prediction
     inputs = padded_batch[:, :-1]
     labels = padded_batch[:, 1:]
+
+    print(padded_batch)
+    print(inputs)
+    print(labels)
+    exit()
     
     list_of_frames = [seq['video'] for seq in input_batch]
     
@@ -249,8 +255,8 @@ class DataModule(pl.LightningDataModule):
             # train_sqa_dataset = SQA_Dataset(path=self.qa_csv_path, tokenizer_path=self.tokenizer_path, config=self.data_config, resize=self.resize, input_size=self.input_size, phase='train')
             # self.train_dataset = CombinedDataset(train_slt_dataset, train_sqa_dataset)
 
-            self.val_dataset = S2T_Dataset(path=self.text_val, tokenizer=self.tokenizer, config=self.data_config, resize=self.resize, input_size=self.input_size, phase='dev')
-
+            # self.val_dataset = S2T_Dataset(path=self.text_val, tokenizer=self.tokenizer, config=self.data_config, resize=self.resize, input_size=self.input_size, phase='dev')
+            self.val_dataset = self.train_dataset
         if stage == 'test' or stage is None:
             # test dataset
             self.test_dataset = S2T_Dataset(path=self.text_test, tokenizer=self.tokenizer, config=self.data_config, resize=self.resize, input_size=self.input_size, phase='test')
@@ -288,8 +294,8 @@ if __name__ == "__main__":
         qa_csv_path,
         tokenizer_path,
         data_config=config,
-        batch_size=4,
-        num_workers=10,
+        batch_size=1,
+        num_workers=1,
     )
 
     data_module.setup()

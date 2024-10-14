@@ -181,4 +181,13 @@ class FineTuneModel(pl.LightningModule):
         }
         
         return [optimizer], [scheduler]
+    
+    def configure_gradient_clipping(self, optimizer, gradient_clip_val, gradient_clip_algorithm):
+        # Implement your own custom logic to clip gradients
+        # You can call `self.clip_gradients` with your settings:
+        self.clip_gradients(
+            optimizer,
+            gradient_clip_val=1.0,
+            gradient_clip_algorithm="norm",
+        )
         

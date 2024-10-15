@@ -16,6 +16,7 @@ from pytorch_lightning.profilers import PyTorchProfiler
 from pytorch_lightning.strategies import DeepSpeedStrategy
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
+
 import argparse
 from pathlib import Path
 from datetime import datetime
@@ -43,7 +44,6 @@ def get_args_parser():
     parser.add_argument('--num_workers', type=int, default=10, help='Number of workers.')
     parser.add_argument('--batch_size', type=int, default=2, help='Batch size.')
     parser.add_argument('--data_ver', type=int, default=0, help='Data version.')
-    
     
     parser.add_argument('--seed', type=int, default=42, help='Random seed.')
     parser.add_argument('--output_dir', type=str, default="output", help='Output directory.')
@@ -89,11 +89,11 @@ def main(args):
                 data_ver=args.data_ver)
     
     trainer = pl.Trainer(
-        strategy=DeepSpeedStrategy,
+        strategy="ddp",
         logger=logger,
         num_sanity_val_steps=0,
         accelerator="gpu",
-        devices=list(range(args.num_gpus)),
+        devices="auto",
         min_epochs=1,
         max_epochs=args.epochs,
         precision=16,

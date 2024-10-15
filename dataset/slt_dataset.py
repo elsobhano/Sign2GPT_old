@@ -20,10 +20,10 @@ import copy
 
 import pytorch_lightning as pl
 from transformers import XGLMTokenizer
-# try:
-from dataset.utils import Brightness, Color, load_dataset_file, read_lmdb_folder, data_augmentation
-# except:
-#     from utils import Brightness, Color, load_dataset_file, read_lmdb_folder, data_augmentation
+try:
+    from dataset.utils import Brightness, Color, load_dataset_file, read_lmdb_folder, data_augmentation
+except:
+    from utils import Brightness, Color, load_dataset_file, read_lmdb_folder, data_augmentation
 
 
 
@@ -126,6 +126,9 @@ class S2T_Dataset(Dataset):
         # print(folder, file_name)
         images = read_lmdb_folder(folder, file_name)
         # print(len(images))
+        images = images[::2]
+        # print(len(images))
+        # exit(0)
         # print(type(images[0]))
         len_imgs = len(images)
         

@@ -70,7 +70,7 @@ class FineTuneModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         logits = self(batch['list_of_frames'], batch['input_ids'], batch['attention_mask'])
         # loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y.view(-1))
-        print(logits.shape, batch['labels'].shape)
+        # print(logits.shape, batch['labels'].shape)
         loss = self.calc_loss(logits, batch['labels'])
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss

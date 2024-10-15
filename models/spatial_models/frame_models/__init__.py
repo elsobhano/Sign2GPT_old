@@ -1,1 +1,0 @@
-from .dino_adaptor_model import *

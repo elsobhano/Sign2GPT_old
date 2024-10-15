@@ -1,3 +1,0 @@
-data:
-    lmdb_path: '/home/sobhan/Documents/Code/LLaMA-Adapter/SQA-Lightning/src/sqa/data/lmdb'
-    max_length: 300

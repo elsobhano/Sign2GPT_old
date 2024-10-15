@@ -89,6 +89,7 @@ def main(args):
                 data_ver=args.data_ver)
     
     trainer = pl.Trainer(
+        strategy=DeepSpeedStrategy,
         logger=logger,
         num_sanity_val_steps=0,
         accelerator="gpu",

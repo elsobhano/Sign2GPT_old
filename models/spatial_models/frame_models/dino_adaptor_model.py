@@ -47,8 +47,8 @@ class Model(nn.Module):
                 param.requires_grad = True
             else:
                 param.requires_grad = False
-                if torch.cuda.is_bf16_supported():
-                    param.to(torch.bfloat16)
+                # if torch.cuda.is_bf16_supported():
+                #     param.to(torch.bfloat16)
 
         if freeze:
             for name, param in self.named_parameters():

@@ -78,6 +78,13 @@ def main(args):
                 tokenizer_path=args.tokenizer_path,
                 lr=args.lr, 
                 encoder_ckpt=args.encoder_ckpt,)
+    
+    # for name, param in model.named_parameters():
+    #     if param.requires_grad and 'gate' in name:  # Filter only parameters that require gradients
+    #         print(f"Trainable Parameter Name: {name}")
+    #         print(f"Trainable Parameter Shape: {param.shape}")
+    # exit(0)
+
 
     data_module = DataModule(
                 root_text_path=args.text_path, 

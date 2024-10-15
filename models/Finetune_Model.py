@@ -164,10 +164,26 @@ class FineTuneModel(pl.LightningModule):
     def calc_loss(self, logits, y):
         return self.criterion(logits.view(-1, logits.size(-1)), y.view(-1))
     
+    def add_weight_decay(self, weight_decay, skip_list=()):
+        """Custom method to create parameter groups with/without weight decay."""
+        decay = []
+        no_decay = []
+        for name, param in self.named_parameters():
+            if not param.requires_grad:
+                continue  # Ignore frozen parameters
+            if 'gate' in name:
+                no_decay.append(param)
+            else:
+                decay.append(param)
+        return [
+            {'params': no_decay, 'weight_decay': 0.0},
+            {'params': decay, 'weight_decay': weight_decay}
+        ]
+    
     def configure_optimizers(self):
 
         print(f'lr: {self.lr}')
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.001)
+        optimizer = torch.optim.Adam(self.add_weight_decay(weight_decay=0.001), lr=self.lr)
         
         scheduler = {
             "scheduler": torch.optim.lr_scheduler.OneCycleLR(

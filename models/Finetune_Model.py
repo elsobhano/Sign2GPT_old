@@ -122,8 +122,7 @@ class FineTuneModel(pl.LightningModule):
         if self.current_epoch % 10 == 0:
             tgt_refs = [item for item in self.test_step_outputs]
             hypotheses = [item for item in self.test_decoded]
-            self.logger.experiment.add_text("targets", "\n".join(tgt_refs[:5]), self.global_step)
-            self.logger.experiment.add_text("hypotheses", "\n".join(hypotheses[:5]), self.global_step)
+            
             
             bleu = BLEU()
             bleu_s = bleu.corpus_score(hypotheses, [tgt_refs]).score
@@ -132,20 +131,23 @@ class FineTuneModel(pl.LightningModule):
             self.test_decoded = []
             self.test_step_outputs = []
     
-    def generate(self, list_of_frames, max_len=55, num_beams=4):
+    def generate(self, list_of_frames):
         bsz = len(list_of_frames)
+        gen_params = {"max_length": 64, "temperature": 1.0, "num_beams": 4}
         # input_ids = [[self.tokenizer.bos_token_id] for _ in range(bsz)]
         # print(input_ids)
         input_ids = torch.zeros(bsz, 1, dtype=torch.long).to(self.device)
-        attention_mask = torch.ones_like(input_ids, dtype=torch.long).to(self.device)
         
         encoded_sign = self.sign_encoder(list_of_frames)
         adaptors = self.proj(encoded_sign["post_output"]['x'])
         masks = encoded_sign["post_output"]['mask']
         outputs = self.xglm.generate(
-                            input_ids=input_ids, attention_mask=attention_mask, 
-                            inputs_adaptors=adaptors, adaptor_mask=masks, 
-                            max_length=max_len, num_beams=num_beams,
+                            input_ids=input_ids, 
+                            inputs_adaptors=adaptors, 
+                            adaptor_mask=masks, 
+                            do_sample=False,
+                            use_cache=False,
+                            **gen_params,
                             )
         
         generated_texts = [self.tokenizer.decode(seq, skip_special_tokens=True) for seq in outputs]

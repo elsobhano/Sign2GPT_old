@@ -96,8 +96,8 @@ class S2T_Dataset(Dataset):
             sometimes(Color(min=0.1, max=1.5)),
         ])
     def __len__(self):
-        return len(self.raw_data)
-        # return 10
+        # return len(self.raw_data)
+        return 10
     
     def __getitem__(self, index):
         key = self.list[index]
@@ -106,10 +106,7 @@ class S2T_Dataset(Dataset):
         # file_name = sample['imgs_path']
         text = sample['text']
         length = sample['length']
-
         encoding = self.tokenizer(text, truncation=False, add_special_tokens=False ,return_tensors='pt')
-        # print(text)
-        # print(encoding)
         
         img_sample = self.load_imgs(file_name)
         # print(img_sample.shape)
@@ -180,7 +177,7 @@ class S2T_Dataset(Dataset):
 
 def collate_fn(input_batch):
     # Add <bos> token to the beginning of each sequence
-    batch = [torch.cat([torch.tensor([0]), seq['input_ids']]) for seq in input_batch]
+    batch = [torch.cat([torch.tensor([0]), seq['input_ids'],torch.tensor([2]), torch.tensor([1])]) for seq in input_batch]
     
     # Pad the sequences to the maximum length in the batch
     padded_batch = pad_sequence(batch, batch_first=True, padding_value=1)
@@ -216,7 +213,7 @@ class DataModule(pl.LightningDataModule):
             resize=256,
             input_size=224,
             batch_size=1, 
-            num_workers=10,
+            num_workers=1,
             data_ver=0):
         super().__init__()
         self.text_train = root_text_path + '.train'
@@ -265,7 +262,7 @@ class DataModule(pl.LightningDataModule):
             self.test_dataset = S2T_Dataset(path=self.text_test, tokenizer=self.tokenizer, config=self.data_config, resize=self.resize, input_size=self.input_size, phase='test')
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True, collate_fn=collate_fn)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False, collate_fn=collate_fn)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False, collate_fn=collate_fn)
@@ -297,7 +294,7 @@ if __name__ == "__main__":
         qa_csv_path,
         tokenizer_path,
         data_config=config,
-        batch_size=1,
+        batch_size=5,
         num_workers=1,
     )
 
@@ -310,17 +307,18 @@ if __name__ == "__main__":
 
     train_dataloader = data_module.train_dataloader()
     # print(dataloader)
-
+    tokenizer = XGLMTokenizer.from_pretrained(tokenizer_path)
     # Example training loop
     for idx, batch in enumerate(train_dataloader):
         print(batch['input_ids'].shape)
         print(batch['input_ids'][0])
+        print(tokenizer.decode(batch['input_ids'][0], skip_special_tokens=True))
         print(batch['labels'].shape)
         print(batch['labels'][0])
+        print(tokenizer.decode(batch['labels'][0], skip_special_tokens=True))
         print(batch['attention_mask'].shape)
         print(batch['attention_mask'][0])
         for video in batch['list_of_frames']:
             print(video.shape)
         print('Successfully loaded batch {}'.format(idx))
-        break
 

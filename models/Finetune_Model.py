@@ -66,6 +66,11 @@ class FineTuneModel(pl.LightningModule):
         outputs = self.xglm(input_ids=input_ids, attention_mask=attention_mask, 
                             inputs_adaptors=adaptors, adaptor_mask=masks)
         return outputs['logits']
+    
+    def on_train_epoch_start(self):
+        optimizer = self.trainer.optimizers[0]
+        lr = optimizer.param_groups[0]['lr']
+        self.log('learning_rate', lr, on_step=False, on_epoch=True, prog_bar=True)
 
     def training_step(self, batch, batch_idx):
         logits = self(batch['list_of_frames'], batch['input_ids'], batch['attention_mask'])
@@ -83,64 +88,49 @@ class FineTuneModel(pl.LightningModule):
             "val_loss": loss,
             }, on_step=False, on_epoch=True, prog_bar=True)
         
-        self.validation_decoded.extend(self.generate(batch['list_of_frames']))
-        self.validation_step_outputs.append(batch['labels'])
+        if self.current_epoch % 10 == 0:
+            self.validation_decoded.extend(self.generate(batch['list_of_frames']))
+            self.validation_step_outputs.extend([self.tokenizer.decode(seq, skip_special_tokens=True) for seq in batch['labels']])
         return loss
 
     def on_validation_epoch_end(self):
-        max_length = max(tensor.size(1) for tensor in self.validation_step_outputs)
-        padded_tensors = []
-        for tensor in self.validation_step_outputs:
-            # Calculate the number of padding values required for this tensor
-            padding_size = max_length - tensor.size(1)
+        if self.current_epoch % 10 == 0:
+            tgt_refs = [item for item in self.validation_step_outputs]
+            hypotheses = [item for item in self.validation_decoded]
+            self.logger.experiment.add_text("targets", "\n".join(tgt_refs[:5]), self.global_step)
+            self.logger.experiment.add_text("hypotheses", "\n".join(hypotheses[:5]), self.global_step)
+            # print(tgt_refs)
+            # print(hypotheses)
+            bleu = BLEU()
+            bleu_s = bleu.corpus_score(hypotheses, [tgt_refs]).score
             
-            # Pad tensor: (left_padding, right_padding) for sequence length (dimension 1)
-            padded_tensor = F.pad(tensor, (0, padding_size), mode='constant', value=1)
-            padded_tensors.append(padded_tensor)
-
-        # Concatenate all the padded tensors into one tensor of shape (2 * t, max_length)
-        targets = torch.cat(padded_tensors, dim=0)
-        tgt_refs = [self.tokenizer.decode(seq, skip_special_tokens=True) for seq in targets]
-        hypotheses = [item for item in self.validation_decoded]
-        
-        bleu = BLEU()
-        bleu_s = bleu.corpus_score(hypotheses, [tgt_refs]).score
-        
-        self.log("val_bleu", bleu_s ,prog_bar=True)
-        self.validation_decoded = []
-        self.validation_step_outputs = []
+            self.log("val_bleu", bleu_s ,prog_bar=True)
+            self.validation_decoded = []
+            self.validation_step_outputs = []
     
     def test_step(self, batch, batch_idx):
         logits = self(batch['list_of_frames'], batch['input_ids'], batch['attention_mask'])
         # loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y.view(-1))
         loss = self.calc_loss(logits, batch['labels'])
         self.log("test_loss", loss)
-        self.test_decoded.extend(self.generate(batch['list_of_frames']))
-        self.test_step_outputs.append(batch['labels'])
+        if self.current_epoch % 10 == 0:
+            self.test_decoded.extend(self.generate(batch['list_of_frames']))
+            self.test_step_outputs.extend([self.tokenizer.decode(seq, skip_special_tokens=True) for seq in batch['labels']])
         return loss
     
     def on_test_epoch_end(self):
-        max_length = max(tensor.size(1) for tensor in self.test_step_outputs)
-        padded_tensors = []
-        for tensor in self.test_step_outputs:
-            # Calculate the number of padding values required for this tensor
-            padding_size = max_length - tensor.size(1)
+        if self.current_epoch % 10 == 0:
+            tgt_refs = [item for item in self.test_step_outputs]
+            hypotheses = [item for item in self.test_decoded]
+            self.logger.experiment.add_text("targets", "\n".join(tgt_refs[:5]), self.global_step)
+            self.logger.experiment.add_text("hypotheses", "\n".join(hypotheses[:5]), self.global_step)
             
-            # Pad tensor: (left_padding, right_padding) for sequence length (dimension 1)
-            padded_tensor = F.pad(tensor, (0, padding_size), mode='constant', value=1)
-            padded_tensors.append(padded_tensor)
-
-        # Concatenate all the padded tensors into one tensor of shape (2 * t, max_length)
-        targets = torch.cat(padded_tensors, dim=0)
-        tgt_refs = [self.tokenizer.decode(seq, skip_special_tokens=True) for seq in targets]
-        hypotheses = [item for item in self.test_decoded]
-        
-        bleu = BLEU()
-        bleu_s = bleu.corpus_score(hypotheses, [tgt_refs]).score
-        
-        self.log("test_bleu", bleu_s ,prog_bar=True)
-        self.test_decoded = []
-        self.test_step_outputs = []
+            bleu = BLEU()
+            bleu_s = bleu.corpus_score(hypotheses, [tgt_refs]).score
+            
+            self.log("test_bleu", bleu_s ,prog_bar=True)
+            self.test_decoded = []
+            self.test_step_outputs = []
     
     def generate(self, list_of_frames, max_len=55, num_beams=4):
         bsz = len(list_of_frames)
@@ -207,12 +197,3 @@ class FineTuneModel(pl.LightningModule):
             gradient_clip_val=1.0,
             gradient_clip_algorithm="norm",
         )
-
-    # def configure_callbacks(self):
-    #     lr_finder = LearningRateFinder(
-    #         min_lr=1e-8,
-    #         max_lr=1,
-    #         num_training_steps=100,
-    #         mode='exponential'
-    #     )
-    #     return [lr_finder]
